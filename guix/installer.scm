@@ -1,4 +1,4 @@
-;;; Copyright © 2019 Alex Griffin <a@ajgrf.com>
+;;; Copyright © 2019, 2023 Alex Griffin <a@ajgrf.com>
 ;;; Copyright © 2019 Pierre Neidhardt <mail@ambrevar.xyz>
 ;;; Copyright © 2019 David Wilson <david@daviwil.com>
 ;;;
@@ -20,8 +20,16 @@
 
 (define-module (nongnu system install)
   #:use-module (gnu services)
+  #:use-module (gnu services sound)
+  #:use-module (gnu services configuration)
+  #:use-module (gnu services linux)
+  #:use-module (gnu services shepherd)
+  #:use-module (guix gexp)
+  #:use-module (guix records)
   #:use-module (gnu system)
   #:use-module (gnu system install)
+  #:use-module (gnu packages accessibility)
+  
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages vim)
   #:use-module (gnu packages curl)
@@ -33,27 +41,62 @@
   #:use-module (guix)
   #:export (installation-os-nonfree))
 
+(define-configuration/no-serialization espeakup-configuration
+  (espeakup
+   (file-like espeakup)
+   "Set the package providing the @code{/bin/espeakup} command.")
+  (default-voice
+    (string "en-US")
+    "Set the voice that espeak-ng should use by default."))
+
+(define (espeakup-shepherd-service config)
+  (list (shepherd-service
+         (provision '(espeakup))
+         (requirement '(user-processes))
+         (documentation "Run espeakup, the espeak-ng bridge to speakup.")
+         (start
+          #~(make-forkexec-constructor
+             (list #$(file-append (espeakup-configuration-espeakup config)
+                                  "/bin/espeakup")
+                   "-v" #$(espeakup-configuration-default-voice config))))
+         (stop #~(make-kill-destructor)))))
+
+(define espeakup-service-type
+  (service-type
+   (name 'espeakup)
+   (extensions
+    (list (service-extension
+           shepherd-root-service-type
+           espeakup-shepherd-service)
+          (service-extension
+           kernel-module-loader-service-type
+           (const (list "speakup_soft")))))
+   (default-value (espeakup-configuration))
+   (description
+    "Configure and run espeakup, a lightweight bridge between espeak-ng and speakup.")))
 (define installation-os-nonfree
   (operating-system
-    (inherit installation-os)
-    (kernel linux)
-    (firmware (list linux-firmware))
+   (inherit installation-os)
+   (kernel linux)
+   (firmware (list linux-firmware))
 
-    ;; Add the 'net.ifnames' argument to prevent network interfaces
-    ;; from having really long names.  This can cause an issue with
-    ;; wpa_supplicant when you try to connect to a wifi network.
-    (kernel-arguments '("quiet" "modprobe.blacklist=radeon" "net.ifnames=0"))
+   ;; Add the 'net.ifnames' argument to prevent network interfaces
+   ;; from having really long names.  This can cause an issue with
+   ;; wpa_supplicant when you try to connect to a wifi network.
+   (kernel-arguments '("quiet" "modprobe.blacklist=radeon" "net.ifnames=0"))
 
-    (services
-     (cons*
-      ;; Include the channel file so that it can be used during installation
-      (simple-service 'channel-file etc-service-type
-                      (list `("channels.scm" ,(local-file "channels.scm"))))
-      (operating-system-user-services installation-os)))
+   (services
+    (cons*
+     (service alsa-service-type)
+     (service espeakup-service-type)
+     ;; Include the channel file so that it can be used during installation
+     (simple-service 'channel-file etc-service-type
+                     (list `("channels.scm" ,(local-file "channels.scm"))))
+     (operating-system-user-services installation-os)))
 
-    ;; Add some extra packages useful for the installation process
-    (packages
-     (append (list git curl stow vim emacs-no-x-toolkit)
-             (operating-system-packages installation-os)))))
+   ;; Add some extra packages useful for the installation process
+   (packages
+    (append (list espeakup git curl stow vim emacs-no-x-toolkit)
+            (operating-system-packages installation-os)))))
 
 installation-os-nonfree
