@@ -92,7 +92,11 @@
      ;; Include the channel file so that it can be used during installation
      (simple-service 'channel-file etc-service-type
                      (list `("channels.scm" ,(local-file "channels.scm"))))
-     (operating-system-user-services installation-os)))
+     (modify-services (operating-system-user-services installation-os)
+                      (openssh-service-type config =>
+                                            (inherit config)
+                                            (allow-empty-passwords? #t)
+                                            (%auto-start? #t)))))
 
    ;; Add some extra packages useful for the installation process
    (packages
