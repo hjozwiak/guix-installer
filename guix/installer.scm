@@ -1,6 +1,7 @@
 ;;; Copyright © 2019, 2023 Alex Griffin <a@ajgrf.com>
 ;;; Copyright © 2019 Pierre Neidhardt <mail@ambrevar.xyz>
 ;;; Copyright © 2019 David Wilson <david@daviwil.com>
+;;; Copyright © 2023 Hunter Jozwiak <hunter.t.joz@gmail.com>
 ;;;
 ;;; This program is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
