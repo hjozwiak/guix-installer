@@ -20,6 +20,7 @@
 
 (define-module (nongnu system install)
   #:use-module (gnu services)
+  #:use-module (gnu services ssh)
   #:use-module (gnu services sound)
   #:use-module (gnu services configuration)
   #:use-module (gnu services linux)
@@ -94,9 +95,10 @@
                      (list `("channels.scm" ,(local-file "channels.scm"))))
      (modify-services (operating-system-user-services installation-os)
                       (openssh-service-type config =>
-                                            (inherit config)
-                                            (allow-empty-passwords? #t)
-                                            (%auto-start? #t)))))
+                                            (openssh-configuration
+                                             (inherit config)
+                                             (allow-empty-passwords? #t)
+                                             (%auto-start? #t))))))
 
    ;; Add some extra packages useful for the installation process
    (packages
