@@ -30,8 +30,9 @@
   #:use-module (guix records)
   #:use-module (gnu system)
   #:use-module (gnu system install)
+  #:use-module (gnu packages speech)
   #:use-module (gnu packages accessibility)
-  
+  #:use-module (nongnu packages linux)
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages vim)
   #:use-module (gnu packages curl)
@@ -39,9 +40,8 @@
   #:use-module (gnu packages linux)
   #:use-module (gnu packages mtools)
   #:use-module (gnu packages package-management)
-  #:use-module (nongnu packages linux)
   #:use-module (guix)
-  #:export (installation-os-nonfree))
+  #:export (installation-os-accessible))
 
 (define-configuration/no-serialization espeakup-configuration
   (espeakup
@@ -60,7 +60,7 @@
           #~(make-forkexec-constructor
              (list #$(file-append (espeakup-configuration-espeakup config)
                                   "/bin/espeakup")
-                   "-v" #$(espeakup-configuration-default-voice config))))
+                   "-V" #$(espeakup-configuration-default-voice config))))
          (stop #~(make-kill-destructor)))))
 
 (define espeakup-service-type
@@ -76,24 +76,21 @@
    (default-value (espeakup-configuration))
    (description
     "Configure and run espeakup, a lightweight bridge between espeak-ng and speakup.")))
-(define installation-os-nonfree
+(define installation-os-accessible
   (operating-system
    (inherit installation-os)
-   (kernel linux)
-   (firmware (list linux-firmware))
-
    ;; Add the 'net.ifnames' argument to prevent network interfaces
    ;; from having really long names.  This can cause an issue with
    ;; wpa_supplicant when you try to connect to a wifi network.
+   (kernel linux)
+   (firmware (list linux-firmware))
    (kernel-arguments '("quiet" "modprobe.blacklist=radeon" "net.ifnames=0" "console=ttyS0,115200" "speakup.synth=soft"))
 
    (services
     (cons*
+;;; Todo unmute all the audio channels.
      (service alsa-service-type)
      (service espeakup-service-type)
-     ;; Include the channel file so that it can be used during installation
-     (simple-service 'channel-file etc-service-type
-                     (list `("channels.scm" ,(local-file "channels.scm"))))
      (modify-services (operating-system-user-services installation-os)
                       (openssh-service-type config =>
                                             (openssh-configuration
@@ -103,7 +100,7 @@
 
    ;; Add some extra packages useful for the installation process
    (packages
-    (append (list espeakup git curl stow vim emacs-no-x-toolkit)
+    (append (list espeak-ng espeakup git curl stow vim emacs-no-x-toolkit alsa-utils)
             (operating-system-packages installation-os)))))
 
-installation-os-nonfree
+installation-os-accessible
