@@ -1,2 +1,2 @@
 *.iso
-./guix/channels.scm
+guix/channels.scm
